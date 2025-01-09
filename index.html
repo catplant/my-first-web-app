@@ -3,16 +3,77 @@
 
 <head>
     <meta charset="UTF-8">
-    <!-- Accessing Pyodide throught a CDN -->
+    <!-- Accessing Pyodide through a CDN -->
     <script src="https://cdn.jsdelivr.net/pyodide/v0.19.1/full/pyodide.js"></script>
 </head>
 <!-- This block of code loads in the JavaScript libraries necessary to use Pyodide -->
+<!--
+    A note on Pyodide:
+        The main thing to know is that we can pass information from JavaScript to Python and 
+        back again. If we create a simple Python function that creates a greeting and put it 
+        in a main.py file then we can use Pyodide to call this function from inside JavaScript
+-->
 <body>
     <h1>Simple Greeter</h1>
-    <input id="data-input" type="text" value="Geoffrey Hinton">
+    <input id="data-input" type="text" value="John Doe">
     <button class="js-submt">Submit</button>
     <p id="greeting"></p>
     <!-- Interactive widgets go below this line -->
-</body>
-</html>
+    <!--
+    To call the Python ftn def greet from JavaScript we’ll need to create a script section in 
+    HTML, and add an asynchronous main loop which can run the code. 
+    -->
+    <script type="text/javascript">
+    
+    // Setup all input fields for access.
+    const btnSubmt = document.querySelector(".js-submt");
+    
+    // Create a main loop function to run
+    async function main() {
+        // Using a try block here ensures that any errors during initialization, such as fetching
+        // the Python code or loading Pyodide, are caught and logged. This is essential for debugging
+        // and ensures the application does not fail silently.
+        try {
+            //  note of error:
+            //      Initial Intention:
+            //          when working locally change this to http://localhost:8000/main.py, 
+            //          otherwise make it the location of the raw file on github.
+            //      
+            //      In v1 of this website, using the localhost link always breaks. 
+            //      My workaround is replacing the link with ./main.py
+            //      p.s. I hope this does not come back to haunt me.
+            const py_code = await (await fetch("./main.py")).text();
+            // Load in the pyodide package
+            const pyodide = await loadPyodide({
+                indexURL: "https://cdn.jsdelivr.net/pyodide/v0.19.1/full/"
+            });
 
+            // Load in the main.py module
+            pyodide.runPython(py_code);
+
+            btnSubmt.addEventListener("click", async () => {
+                const data = document.getElementById("data-input").value;
+                // Using a nested try block here ensures that if running the Python function fails 
+                // (e.g., due to a syntax error in Python code or missing function), the error is 
+                // logged without crashing the entire application.
+                try {
+                    // Run the greet method in Python and get the result
+                    const out = pyodide.runPython(`greet(${JSON.stringify(data)})`);
+                    // Display the output
+                    document.getElementById("greeting").innerText = out;
+                } catch (error) {
+                    console.error("Error executing Python function:", error);
+                }
+            });
+        } catch (error) {
+            console.error("Error during initialization:", error);
+        }
+    };
+
+    // Run the main loop
+    main();
+
+    </script>
+</body>
+
+</html>
